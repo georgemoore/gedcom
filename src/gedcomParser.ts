@@ -34,34 +34,51 @@ export function parseGedcom(text: string, filename: string): GedcomFile {
   const people: GedcomPerson[] = [];
   let currentId: string | null = null;
   const currentRecord: Record<string, string[]> = {};
+  let lastLevel1Tag: string | null = null;
 
   for (const line of lines) {
     if (!line) continue;
 
     const parts = line.split(/\s+/);
-    const level = parseInt(parts[0]);
+    if (parts.length < 2) continue;
+
+    const level = parseInt(parts[0], 10);
+    if (Number.isNaN(level)) continue;
+
     const tag = parts[1];
     const value = parts.slice(2).join(' ');
 
-    // Process individual records
-    if (level === 0 && tag === 'INDI') {
-      if (currentId) {
-        const person = buildPerson(currentId, currentRecord);
-        if (person) people.push(person);
+    // Process individual records: handle both "0 INDI @I1@" and "0 @I1@ INDI" forms
+    if (level === 0) {
+      const isIndiTag = tag === 'INDI' || parts[2] === 'INDI';
+      if (isIndiTag) {
+        if (currentId) {
+          const person = buildPerson(currentId, currentRecord);
+          if (person) people.push(person);
+        }
+
+        const idSource = tag === 'INDI' ? value : tag; // value when "0 INDI @I1@", tag when "0 @I1@ INDI"
+        currentId = (idSource || '').replace(/[@]/g, '').trim();
+
+        // reset state for the next record
+        Object.keys(currentRecord).forEach(key => delete currentRecord[key]);
+        lastLevel1Tag = null;
       }
-      currentId = value.replace(/[@]/g, '');
-      Object.keys(currentRecord).forEach(key => delete currentRecord[key]);
-    } else if (currentId && level === 1) {
+      continue;
+    }
+
+    // Ignore lines until we are inside an individual record
+    if (!currentId) continue;
+
+    if (level === 1) {
+      lastLevel1Tag = tag;
       if (!currentRecord[tag]) {
         currentRecord[tag] = [];
       }
       currentRecord[tag].push(value);
-    } else if (currentId && level === 2) {
-      // Handle sub-tags like DATE, PLAC
-      const lastTag = Object.keys(currentRecord).pop();
-      if (lastTag && currentRecord[lastTag].length > 0) {
-        currentRecord[lastTag][currentRecord[lastTag].length - 1] += ` [${tag}:${value}]`;
-      }
+    } else if (level === 2 && lastLevel1Tag && currentRecord[lastLevel1Tag]?.length > 0) {
+      // Handle sub-tags like DATE, PLAC by appending to the last level-1 entry
+      currentRecord[lastLevel1Tag][currentRecord[lastLevel1Tag].length - 1] += ` [${tag}:${value}]`;
     }
   }
 
