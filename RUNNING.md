@@ -6,6 +6,24 @@
 - Any modern web browser (Chrome 90+, Firefox 78+, Safari 14+, Edge 90+)
 - Internet connection (for initial dependency download)
 
+## Run with Docker (preferred for quick start)
+
+Prerequisite: Docker Desktop or Docker Engine 20.10+
+
+```bash
+# 1) Build image
+docker build -t gedcom-compare .
+
+# 2) Run container (serves on http://localhost:8080)
+docker run --rm -p 8080:80 gedcom-compare
+```
+
+Then open http://localhost:8080 in your browser.
+
+Notes:
+- Multi-stage build creates a small nginx image serving the prebuilt `dist/` assets.
+- Source code changes require rebuilding the image.
+
 ## Installation & Launch (5 minutes)
 
 ### 1. Navigate to the project directory
