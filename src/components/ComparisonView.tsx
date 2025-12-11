@@ -48,6 +48,10 @@ function ComparisonView({
   const leftUnmatched = getUnmatchedLeft(session.leftPeople, session.matches);
   const rightUnmatched = getUnmatchedRight(session.rightPeople, session.matches);
 
+  const hasActiveMatch = selectedLeft && selectedRight
+    ? session.matches.some(m => m.leftId === selectedLeft && m.rightId === selectedRight)
+    : false;
+
   // Synchronized scrolling
   useEffect(() => {
     if (!syncScroll) return;
@@ -77,19 +81,22 @@ function ComparisonView({
   }, [syncScroll]);
 
   const handleMatch = () => {
-    if (selectedLeft && selectedRight && matchingMode) {
-      const newMatches = addMatch(
-        session.matches,
-        session.leftPeople,
-        session.rightPeople,
-        selectedLeft,
-        selectedRight
-      );
-      setSession({ ...session, matches: newMatches });
-      setMatchingMode(false);
-      setSelectedLeft(null);
-      setSelectedRight(null);
-    }
+    if (!selectedLeft || !selectedRight) return;
+
+    if (hasActiveMatch) return;
+
+    const newMatches = addMatch(
+      session.matches,
+      session.leftPeople,
+      session.rightPeople,
+      selectedLeft,
+      selectedRight
+    );
+
+    setSession({ ...session, matches: newMatches });
+    setMatchingMode(false);
+    setSelectedLeft(null);
+    setSelectedRight(null);
   };
 
   const handleUnmatch = (leftId: string, rightId: string) => {
@@ -205,14 +212,25 @@ function ComparisonView({
         </div>
 
         <div className="comparison-actions">
-          {matchingMode && selectedLeft && selectedRight && (
-            <button className="match-button" onClick={handleMatch}>
+          {selectedLeft && selectedRight && (
+            <button
+              className="match-button"
+              onClick={handleMatch}
+              disabled={!matchingMode || hasActiveMatch}
+              title={
+                hasActiveMatch
+                  ? 'These people are already matched'
+                  : matchingMode
+                  ? 'Create a manual match'
+                  : 'Enable manual matching to create a link'
+              }
+            >
               <Link2 size={16} />
               Create Match
             </button>
           )}
 
-          {selectedLeft && selectedRight && !matchingMode && (
+          {selectedLeft && selectedRight && hasActiveMatch && (
             <button
               className="unmatch-button"
               onClick={() => handleUnmatch(selectedLeft, selectedRight)}
